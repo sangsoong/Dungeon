@@ -36,18 +36,17 @@ class Dungeon:
     map_size_y = 500
 
     root_node = None
-    max_node = 5
+    max_div = 5
     min_divide_size = 0.2
     max_divide_size = 0.8
-
     rooms = []
     roads = []
 
     @classmethod
-    def Make_dungeon(cls, size, count):
+    def Make_dungeon(cls, size, div_count, add_road):
         cls.map_size_x = size[0]
         cls.map_size_y = size[1]
-        cls.max_node = count
+        cls.max_div = div_count
         cls.rooms.clear()
         cls.roads.clear()
 
@@ -55,6 +54,7 @@ class Dungeon:
         cls.divide_tree(cls.root_node, 0)
         cls.generate_room(cls.root_node, 0)
         cls.generate_road(cls.root_node, 0)
+        cls.generate_additional_road(add_road)
 
     @classmethod
     def get_center_X(cls, size):
@@ -66,7 +66,7 @@ class Dungeon:
 
     @classmethod
     def divide_tree(cls, tree_node, n):
-        if n < cls.max_node:
+        if n < cls.max_div:
             size = tree_node.tree_size
             length = size.width if size.width >= size.height else size.height
             split = r.randrange(int(length * cls.min_divide_size), int(length * cls.max_divide_size))
@@ -84,7 +84,7 @@ class Dungeon:
 
     @classmethod
     def generate_room(cls, tree_node, n):
-        if n == cls.max_node:
+        if n == cls.max_div:
             size = tree_node.tree_size
             width = r.randrange(int(size.width / 2), size.width - 1)
             height = r.randrange(int(size.height / 2), size.height - 1)
@@ -94,7 +94,7 @@ class Dungeon:
             if r.randint(0, 0) == 0:
                 type = pygame.transform.scale(Room1, (width, height))
             cls.rooms.append(Room(x, y, width, height, type))
-            return Room(x, y, width, height, type)
+            return cls.rooms[-1]
 
         tree_node.left_tree.dungeon_size = cls.generate_room(tree_node.left_tree, n + 1)
         tree_node.right_tree.dungeon_size = cls.generate_room(tree_node.right_tree, n + 1)
@@ -102,16 +102,10 @@ class Dungeon:
 
     @classmethod
     def generate_road(cls, tree_node, n):
-        size1 = None
-        size2 = None
-        if n == cls.max_node:
-            rooms_copy = cls.rooms[:]
-            size1 = r.choice(rooms_copy)
-            rooms_copy.remove(size1)
-            size2 = r.choice(rooms_copy)
-        else:
-            size1 = tree_node.left_tree.dungeon_size
-            size2 = tree_node.right_tree.dungeon_size
+        if n == cls.max_div:
+            return
+        size1 = tree_node.left_tree.dungeon_size
+        size2 = tree_node.right_tree.dungeon_size
         x1 = cls.get_center_X(size1)
         y1 = cls.get_center_Y(size1)
         x2 = cls.get_center_X(size2)
@@ -119,14 +113,32 @@ class Dungeon:
         type1 = None
         type2 = None
         if r.randint(0, 0) == 0:
-            type1 = pygame.transform.scale(Road1, (max(x1, x2) - min(x1, x2), 10))
-            type2 = pygame.transform.scale(Road1, (10, max(y1, y2) - min(y1, y2)))
+            type1 = pygame.transform.scale(Road1, (max(x1, x2) - min(x1, x2), 20))
+            type2 = pygame.transform.scale(Road1, (20, max(y1, y2) - min(y1, y2)))
         cls.roads.append(Road(min(x1, x2), y1, max(x1, x2), y1, type1))
         cls.roads.append(Road(x2, min(y1, y2), x2, max(y1, y2), type2))
 
-        if n != cls.max_node:
-            cls.generate_road(tree_node.left_tree, n + 1)
-            cls.generate_road(tree_node.right_tree, n + 1)
+        cls.generate_road(tree_node.left_tree, n + 1)
+        cls.generate_road(tree_node.right_tree, n + 1)
+    
+    @classmethod
+    def generate_additional_road(cls, n):
+        for i in range(0, n):
+            rooms_copy = cls.rooms[:]
+            size1 = r.choice(rooms_copy)
+            rooms_copy.remove(size1)
+            size2 = r.choice(rooms_copy)
+            x1 = cls.get_center_X(size1)
+            y1 = cls.get_center_Y(size1)
+            x2 = cls.get_center_X(size2)
+            y2 = cls.get_center_Y(size2)
+            type1 = None
+            type2 = None
+            if r.randint(0, 0) == 0:
+                type1 = pygame.transform.scale(Road1, (max(x1, x2) - min(x1, x2), 10))
+                type2 = pygame.transform.scale(Road1, (10, max(y1, y2) - min(y1, y2)))
+            cls.roads.append(Road(min(x1, x2), y1, max(x1, x2), y1, type1))
+            cls.roads.append(Road(x2, min(y1, y2), x2, max(y1, y2), type2))
 
     @classmethod
     def draw_dungeon(cls):
@@ -147,12 +159,14 @@ pygame.display.set_caption("Dungeon")
 # ==========================================================================================
 
 Room1 = pygame.image.load("sprites/black_square.png").convert_alpha()
+Room2 = pygame.image.load("sprites/red_square.png").convert_alpha()
+Room3 = pygame.image.load("sprites/orange_square.png").convert_alpha()
 Road1 = pygame.image.load("sprites/grey_square.png").convert_alpha()
 
 # ==========================================================================================
 
 def main():
-    Dungeon.Make_dungeon((SCREEN_WIDTH, SCREEN_HEIGHT), 3)
+    Dungeon.Make_dungeon((SCREEN_WIDTH, SCREEN_HEIGHT), 3, 1)
 
     run = True
     while run:
@@ -165,7 +179,7 @@ def main():
                 run = False
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_SPACE:
-                    Dungeon.Make_dungeon((SCREEN_WIDTH, SCREEN_HEIGHT), 3)
+                    Dungeon.Make_dungeon((SCREEN_WIDTH, SCREEN_HEIGHT), 3, 1)
 
         Dungeon.draw_dungeon()
 
